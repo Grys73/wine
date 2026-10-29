@@ -1,3 +1,31 @@
+## ABOUT THIS FORK
+
+This is a personal fork of Wine by Krzysiek Niedziela, for running Windows business applications
+(.NET services, GDI+ reports and PDF export) on Wine, including ARM64. It is not part of the Wine
+project and these changes are not submitted upstream.
+
+Branch `wine-fixes` is Wine master as of 2026-10-29 (66caeb4) plus six fix commits:
+
+- gdiplus: GdipGetImageDimension() returns metafile dimensions in 0.01 mm units, as Windows does.
+- gdiplus: GdipIsStyleAvailable() reports every style as available, as Windows does.
+- gdiplus: GdipMeasureString() counts the line break and consumed trailing blanks as fitted code
+  points, as Windows does (two commits).
+- ntdll: QUEUE_USER_APC_CALLBACK_DATA_CONTEXT is supported on ARM64. Without it, .NET 8+
+  applications on ARM64 crash when the garbage collector suspends a running thread. A kernel32
+  test is added.
+
+Each change comes with conformance tests. The new tests pass on Windows 11 x64 and on Wine x86_64.
+The ARM64 change is compile-tested only.
+
+**AI assistance:** these changes were written with an AI coding assistant (Claude, by Anthropic)
+and tested by me. Wine's Clean Room Guidelines do not allow LLM-generated code, which is why they
+are not sent upstream. Please do not copy them into Wine merge requests. The Windows behaviour was
+established with test programs and public documentation, not with Microsoft source code or
+disassembly of Windows DLLs.
+
+The changes are released under the same licence as Wine, the GNU LGPL 2.1 or later.
+
+
 ## INTRODUCTION
 
 Wine is a program which allows running Microsoft Windows programs

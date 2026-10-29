@@ -5156,6 +5156,27 @@ static void test_measure_string_fitted(void)
         { L"ab\r\n", 0, 4, 1 },
         { L"ab\ncd", 0, 5, 2 },
     };
+    static const struct
+    {
+        const WCHAR *string;
+        const WCHAR *measured;
+        INT flags;
+        INT fitted;
+    }
+    blank_tests[] =
+    {
+        /* blanks consumed at a line wrap count as fitted, their width only with MeasureTrailingSpaces */
+        { L"aaa bbb", L"aaa", StringFormatFlagsLineLimit, 4 },
+        { L"aaa bbb", L"aaa ", StringFormatFlagsLineLimit | StringFormatFlagsMeasureTrailingSpaces, 4 },
+        { L"aaa   bbb", L"aaa", StringFormatFlagsLineLimit, 6 },
+        { L"aaa   bbb", L"aaa   ", StringFormatFlagsLineLimit | StringFormatFlagsMeasureTrailingSpaces, 6 },
+        /* the same for blanks before a line break and at the end of the text */
+        { L"aaa  \nbbb", L"aaa", StringFormatFlagsLineLimit, 6 },
+        { L"aaa ", L"aaa", StringFormatFlagsLineLimit, 4 },
+        { L"aaa  ", L"aaa  ", StringFormatFlagsLineLimit | StringFormatFlagsMeasureTrailingSpaces, 5 },
+    };
+    GpStringFormat *measure_format;
+    REAL wrap_width, width;
     GpStringFormat *format;
     GpFontFamily *family;
     GpGraphics *graphics;
@@ -5196,6 +5217,41 @@ static void test_measure_string_fitted(void)
         expect(Ok, status);
         expect(tests[i].fitted, fitted);
         expect(tests[i].lines, lines);
+
+        GdipDeleteStringFormat(format);
+        winetest_pop_context();
+    }
+
+    /* wide enough for "aaa " but not for "aaa b" */
+    set_rect_empty(&rect);
+    status = GdipMeasureString(graphics, L"aaa b", -1, font, &rect, NULL, &bounds, NULL, NULL);
+    expect(Ok, status);
+    wrap_width = bounds.Width - 0.5;
+
+    for (i = 0; i < ARRAY_SIZE(blank_tests); i++)
+    {
+        winetest_push_context("%u", i);
+
+        status = GdipCreateStringFormat(StringFormatFlagsMeasureTrailingSpaces, LANG_NEUTRAL, &measure_format);
+        expect(Ok, status);
+        set_rect_empty(&rect);
+        status = GdipMeasureString(graphics, blank_tests[i].measured, -1, font, &rect, measure_format, &bounds, NULL, NULL);
+        expect(Ok, status);
+        width = min(bounds.Width, wrap_width);
+        GdipDeleteStringFormat(measure_format);
+
+        status = GdipCreateStringFormat(blank_tests[i].flags, LANG_NEUTRAL, &format);
+        expect(Ok, status);
+
+        rect.X = rect.Y = 0.0;
+        rect.Width = wrap_width;
+        rect.Height = height * 1.5;
+        fitted = lines = -1;
+        status = GdipMeasureString(graphics, blank_tests[i].string, -1, font, &rect, format, &bounds, &fitted, &lines);
+        expect(Ok, status);
+        expect(blank_tests[i].fitted, fitted);
+        expect(1, lines);
+        expectf_(width, bounds.Width, 0.01);
 
         GdipDeleteStringFormat(format);
         winetest_pop_context();

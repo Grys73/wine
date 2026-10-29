@@ -6024,12 +6024,14 @@ GpStatus gdip_format_string(GpGraphics *graphics, HDC hdc,
                     }
                 }
             lineend = fit;
-            while(*(stringdup + sum + lineend - 1) == ' ' ||
-                  *(stringdup + sum + lineend - 1) == '\t')
-                lineend--;
         }
         else
             lineend = fit;
+
+        /* Trailing blanks are part of the line, but only measured with StringFormatFlagsMeasureTrailingSpaces. */
+        if (!(format->attr & StringFormatFlagsMeasureTrailingSpaces))
+            while (lineend && (stringdup[sum + lineend - 1] == ' ' || stringdup[sum + lineend - 1] == '\t'))
+                lineend--;
 
         font_link_get_text_extent_point(&info, vertical, sum, lineend, vertical ? nheight : nwidth, &j, &size);
 
@@ -6037,6 +6039,15 @@ GpStatus gdip_format_string(GpGraphics *graphics, HDC hdc,
             bounds.Height = size.cx;
         else
             bounds.Width = size.cx;
+
+        /* measured trailing blanks don't extend the line beyond the layout rectangle */
+        if (format->attr & StringFormatFlagsMeasureTrailingSpaces)
+        {
+            if (vertical && size.cx > nheight)
+                bounds.Height = rect->Height;
+            else if (!vertical && size.cx > nwidth)
+                bounds.Width = rect->Width;
+        }
 
         if (vertical)
         {
@@ -6108,7 +6119,7 @@ GpStatus gdip_format_string(GpGraphics *graphics, HDC hdc,
         if (lret < fitcpy)
             info.consumed = fit + (unixstyle_newline ? 1 : 2);
         else
-            info.consumed = lineend;
+            info.consumed = fit;
         info.lineno = lineno;
         info.underlined_indexes = &hotkeyprefix_offsets[hotkeyprefix_pos];
         info.underlined_index_count = hotkeyprefix_end_pos-hotkeyprefix_pos;

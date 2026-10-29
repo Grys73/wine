@@ -689,7 +689,7 @@ struct gdip_format_string_info {
     GDIPCONST WCHAR *string;
     INT index;
     INT length;
-    INT consumed; /* characters used up by the line, including the line break */
+    INT consumed; /* characters used up by the line, including trailing blanks and the line break */
     struct gdip_font_link_info font_link_info;
     GDIPCONST RectF *rect;
     GDIPCONST GpStringFormat *format;

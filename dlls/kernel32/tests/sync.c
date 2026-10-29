@@ -3038,6 +3038,19 @@ static void CALLBACK user_apc(ULONG_PTR unused)
     apc_count++;
 }
 
+static void CALLBACK user_apc_callback_data(ULONG_PTR arg)
+{
+    APC_CALLBACK_DATA *data = (APC_CALLBACK_DATA *)arg;
+
+    apc_count++;
+    ok(arg != 0x5678, "got the raw parameter.\n");
+    if (arg == 0x5678) return;
+    ok(data->Parameter == 0x5678, "got %#Ix.\n", data->Parameter);
+    ok(!!data->ContextRecord, "got NULL context.\n");
+    ok(!data->Reserved0, "got %#Ix.\n", data->Reserved0);
+    ok(!data->Reserved1, "got %#Ix.\n", data->Reserved1);
+}
+
 static void CALLBACK call_user_apc(ULONG_PTR arg1, ULONG_PTR arg2, ULONG_PTR arg3)
 {
     PAPCFUNC func = (PAPCFUNC)arg1;
@@ -3120,6 +3133,17 @@ static void test_QueueUserAPC(void)
     if (ret)
     {
         todo_wine ok(apc_count == 1, "got %d.\n", apc_count);
+        SleepEx( 0, TRUE );
+        ok(apc_count == 1, "got %d.\n", apc_count);
+    }
+
+    apc_count = 0;
+    ret = pQueueUserAPC2(user_apc_callback_data, GetCurrentThread(), 0x5678, QUEUE_USER_APC_CALLBACK_DATA_CONTEXT);
+    ok(ret || broken(!ret && GetLastError() == ERROR_INVALID_PARAMETER) /* before Win11 22H2 */,
+       "got error %lu.\n", GetLastError());
+    if (ret)
+    {
+        ok(!apc_count, "got %d.\n", apc_count);
         SleepEx( 0, TRUE );
         ok(apc_count == 1, "got %d.\n", apc_count);
     }

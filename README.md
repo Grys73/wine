@@ -4,6 +4,11 @@ This is a personal fork of Wine by Krzysiek Niedziela, for running business appl
 services, GDI+ reports and PDF export) on Wine, including ARM64. It is not part of the Wine project
 and these changes are not submitted upstream.
 
+**Tired of waiting to test your software in an ARM64 environment?** Wine on ARM64 can already run
+.NET business applications: ARM64 builds natively, and x64 builds through an x86 emulator such as
+FEX or Box64, as Hangover does. The ARM64 fix in this branch addresses a crash that hit ARM64
+.NET 8+ applications whenever the garbage collector suspended a running thread.
+
 Branch `wine-fixes` is Wine master as of 2026-10-29 (66caeb4) plus six fix commits:
 
 - gdiplus: GdipGetImageDimension() returns metafile dimensions in 0.01 mm units, as Windows does.

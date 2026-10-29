@@ -2236,10 +2236,13 @@ GpStatus WINGDIPAPI GdipGetImageDimension(GpImage *image, REAL *width,
         return InvalidParameter;
 
     if(image->type == ImageTypeMetafile){
-        *height = units_to_pixels(((GpMetafile*)image)->bounds.Height, ((GpMetafile*)image)->unit,
-                                  image->yres, ((GpMetafile*)image)->printer_display);
-        *width = units_to_pixels(((GpMetafile*)image)->bounds.Width, ((GpMetafile*)image)->unit,
-                                 image->xres, ((GpMetafile*)image)->printer_display);
+        GpMetafile *metafile = (GpMetafile*)image;
+
+        /* the physical dimension of a metafile is in 0.01 mm */
+        *height = 100.0 * units_scale(metafile->unit, UnitMillimeter, image->yres, metafile->printer_display) *
+                  metafile->bounds.Height;
+        *width = 100.0 * units_scale(metafile->unit, UnitMillimeter, image->xres, metafile->printer_display) *
+                 metafile->bounds.Width;
     }
     else if(image->type == ImageTypeBitmap){
         *height = ((GpBitmap*)image)->height;

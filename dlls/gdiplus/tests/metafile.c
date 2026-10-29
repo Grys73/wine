@@ -1999,7 +1999,7 @@ static void test_frameunit(void)
     HDC hdc;
     static const GpRectF frame = {0.0, 0.0, 5.0, 5.0};
     GpUnit unit;
-    REAL dpix, dpiy;
+    REAL dpix, dpiy, width, height;
     GpRectF bounds;
 
     hdc = CreateCompatibleDC(0);
@@ -2051,6 +2051,11 @@ static void test_frameunit(void)
     expectf(0.0, bounds.Y);
     expectf_(5.0 * dpix, bounds.Width, 1.0);
     expectf_(5.0 * dpiy, bounds.Height, 1.0);
+
+    stat = GdipGetImageDimension((GpImage*)metafile, &width, &height);
+    expect(Ok, stat);
+    expectf_(bounds.Width * 2540.0 / dpix, width, 1.0);
+    expectf_(bounds.Height * 2540.0 / dpiy, height, 1.0);
 
     stat = GdipDisposeImage((GpImage*)metafile);
     expect(Ok, stat);

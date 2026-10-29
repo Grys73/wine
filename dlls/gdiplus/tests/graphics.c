@@ -3406,7 +3406,7 @@ static void test_string_functions(void)
     expect(Ok, status);
     expectf(0.0, bounds.X);
     expectf(0.0, bounds.Y);
-    todo_wine expect(5, codepointsfitted);
+    expect(5, codepointsfitted);
     expect(1, linesfilled);
 
     /* Cut off everything after the first space. */
@@ -5136,6 +5136,75 @@ static void test_measure_string(void)
     GdipDeleteRegion(region);
     GdipDeleteStringFormat(format);
     GdipDeleteStringFormat(format_no_wrap);
+}
+
+static void test_measure_string_fitted(void)
+{
+    static const struct
+    {
+        const WCHAR *string;
+        INT flags;
+        INT fitted;
+        INT lines;
+    }
+    tests[] =
+    {
+        /* the line break counts as fitted */
+        { L"ab\ncd", StringFormatFlagsLineLimit, 3, 1 },
+        { L"ab\r\ncd", StringFormatFlagsLineLimit, 4, 1 },
+        { L"ab\n", 0, 3, 1 },
+        { L"ab\r\n", 0, 4, 1 },
+        { L"ab\ncd", 0, 5, 2 },
+    };
+    GpStringFormat *format;
+    GpFontFamily *family;
+    GpGraphics *graphics;
+    RectF rect, bounds;
+    INT fitted, lines;
+    GpStatus status;
+    REAL height;
+    GpFont *font;
+    HDC hdc;
+    int i;
+
+    hdc = CreateCompatibleDC(0);
+    status = GdipCreateFromHDC(hdc, &graphics);
+    expect(Ok, status);
+    status = GdipCreateFontFamilyFromName(L"Tahoma", NULL, &family);
+    expect(Ok, status);
+    status = GdipCreateFont(family, 10, FontStyleRegular, UnitPixel, &font);
+    expect(Ok, status);
+
+    set_rect_empty(&rect);
+    status = GdipMeasureString(graphics, L"a", -1, font, &rect, NULL, &bounds, NULL, NULL);
+    expect(Ok, status);
+    height = bounds.Height;
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++)
+    {
+        winetest_push_context("%u", i);
+
+        status = GdipCreateStringFormat(tests[i].flags, LANG_NEUTRAL, &format);
+        expect(Ok, status);
+
+        /* room for one and a half lines */
+        rect.X = rect.Y = 0.0;
+        rect.Width = 1000.0;
+        rect.Height = height * 1.5;
+        fitted = lines = -1;
+        status = GdipMeasureString(graphics, tests[i].string, -1, font, &rect, format, &bounds, &fitted, &lines);
+        expect(Ok, status);
+        expect(tests[i].fitted, fitted);
+        expect(tests[i].lines, lines);
+
+        GdipDeleteStringFormat(format);
+        winetest_pop_context();
+    }
+
+    GdipDeleteFont(font);
+    GdipDeleteFontFamily(family);
+    GdipDeleteGraphics(graphics);
+    DeleteDC(hdc);
 }
 
 static void test_measure_string_vertical(void)
@@ -8248,6 +8317,7 @@ START_TEST(graphics)
     test_clipping_2();
     test_measured_extra_space();
     test_measure_string();
+    test_measure_string_fitted();
     test_measure_string_vertical();
     test_font_height_scaling();
     test_transform();

@@ -6105,6 +6105,10 @@ GpStatus gdip_format_string(GpGraphics *graphics, HDC hdc,
 
         info.index = sum;
         info.length = lineend;
+        if (lret < fitcpy)
+            info.consumed = fit + (unixstyle_newline ? 1 : 2);
+        else
+            info.consumed = lineend;
         info.lineno = lineno;
         info.underlined_indexes = &hotkeyprefix_offsets[hotkeyprefix_pos];
         info.underlined_index_count = hotkeyprefix_end_pos-hotkeyprefix_pos;
@@ -6390,7 +6394,7 @@ static GpStatus measure_string_callback(struct gdip_format_string_info *info)
         bounds->Height = new_height;
 
     if (args->codepointsfitted)
-        *args->codepointsfitted = info->index + info->length;
+        *args->codepointsfitted = info->index + info->consumed;
 
     if (args->linesfilled)
         (*args->linesfilled)++;

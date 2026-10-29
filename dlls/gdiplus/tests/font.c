@@ -1572,6 +1572,38 @@ static void test_GdipPrivateAddMemoryFont(void)
     }
 }
 
+static void test_GdipIsStyleAvailable(void)
+{
+    GpFontFamily *family;
+    GpStatus status;
+    BOOL avail;
+    INT style;
+
+    status = GdipCreateFontFamilyFromName(L"Tahoma", NULL, &family);
+    expect(Ok, status);
+
+    status = GdipIsStyleAvailable(NULL, FontStyleRegular, &avail);
+    expect(InvalidParameter, status);
+    status = GdipIsStyleAvailable(family, FontStyleRegular, NULL);
+    expect(InvalidParameter, status);
+
+    /* Tahoma has no italic face, and underline and strikeout are not separate faces */
+    for (style = FontStyleRegular; style <= (FontStyleBoldItalic | FontStyleUnderline | FontStyleStrikeout); style++)
+    {
+        avail = FALSE;
+        status = GdipIsStyleAvailable(family, style, &avail);
+        expect(Ok, status);
+        ok(avail, "style %#x is not available\n", style);
+    }
+
+    avail = FALSE;
+    status = GdipIsStyleAvailable(family, 0x100, &avail);
+    expect(Ok, status);
+    ok(avail, "style 0x100 is not available\n");
+
+    GdipDeleteFontFamily(family);
+}
+
 START_TEST(font)
 {
     struct GdiplusStartupInput gdiplusStartupInput;
@@ -1591,6 +1623,7 @@ START_TEST(font)
 
     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
+    test_GdipIsStyleAvailable();
     test_CloneFont();
     test_long_name();
     test_font_transform();

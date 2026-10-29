@@ -966,39 +966,16 @@ GpStatus WINGDIPAPI GdipGetLineSpacing(GDIPCONST GpFontFamily *family,
     return Ok;
 }
 
-static INT CALLBACK font_has_style_proc(const LOGFONTW *elf,
-                            const TEXTMETRICW *ntm, DWORD type, LPARAM lParam)
-{
-    INT fontstyle = FontStyleRegular;
-
-    if (!ntm) return 1;
-
-    if (ntm->tmWeight >= FW_BOLD) fontstyle |= FontStyleBold;
-    if (ntm->tmItalic) fontstyle |= FontStyleItalic;
-    if (ntm->tmUnderlined) fontstyle |= FontStyleUnderline;
-    if (ntm->tmStruckOut) fontstyle |= FontStyleStrikeout;
-
-    return (INT)lParam != fontstyle;
-}
-
 GpStatus WINGDIPAPI GdipIsStyleAvailable(GDIPCONST GpFontFamily* family,
         INT style, BOOL* IsStyleAvailable)
 {
-    HDC hdc;
-
     TRACE("%p %d %p\n", family, style, IsStyleAvailable);
 
     if (!(family && IsStyleAvailable))
         return InvalidParameter;
 
-    *IsStyleAvailable = FALSE;
-
-    hdc = CreateCompatibleDC(0);
-
-    if(!EnumFontFamiliesW(hdc, family->FamilyName, font_has_style_proc, (LPARAM)style))
-        *IsStyleAvailable = TRUE;
-
-    DeleteDC(hdc);
+    /* Native reports every style as available, missing bold and italic faces are simulated. */
+    *IsStyleAvailable = TRUE;
 
     return Ok;
 }

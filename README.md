@@ -1,8 +1,8 @@
 ## ABOUT THIS FORK
 
-This is a personal fork of Wine by Krzysiek Niedziela, for running Windows business applications
-(.NET services, GDI+ reports and PDF export) on Wine, including ARM64. It is not part of the Wine
-project and these changes are not submitted upstream.
+This is a personal fork of Wine by Krzysiek Niedziela, for running business applications (.NET
+services, GDI+ reports and PDF export) on Wine, including ARM64. It is not part of the Wine project
+and these changes are not submitted upstream.
 
 Branch `wine-fixes` is Wine master as of 2026-10-29 (66caeb4) plus six fix commits:
 

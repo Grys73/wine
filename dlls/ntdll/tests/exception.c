@@ -93,13 +93,13 @@ static void      (WINAPI *pRtlSetUnhandledExceptionFilter)(PRTL_EXCEPTION_FILTER
 #ifdef __x86_64__
 static NTSTATUS  (WINAPI *pNtQueueApcThreadEx)(HANDLE handle, HANDLE reserve_handle, PNTAPCFUNC func,
         ULONG_PTR arg1, ULONG_PTR arg2, ULONG_PTR arg3);
-static NTSTATUS  (WINAPI *pNtQueueApcThreadEx2)(HANDLE handle, HANDLE reserve_handle, ULONG flags, PNTAPCFUNC func,
-        ULONG_PTR arg1, ULONG_PTR arg2, ULONG_PTR arg3);
 static NTSTATUS  (WINAPI *pNtRaiseException)(EXCEPTION_RECORD *rec, CONTEXT *context, BOOL first_chance);
 static NTSTATUS  (WINAPI *pRtlGetNativeSystemInformation)(SYSTEM_INFORMATION_CLASS,void*,ULONG,ULONG*);
 #endif
 #if defined(__x86_64__) || defined(__aarch64__)
 static NTSTATUS  (WINAPI *pNtContinueEx)(CONTEXT*,KCONTINUE_ARGUMENT*);
+static NTSTATUS  (WINAPI *pNtQueueApcThreadEx2)(HANDLE handle, HANDLE reserve_handle, ULONG flags, PNTAPCFUNC func,
+        ULONG_PTR arg1, ULONG_PTR arg2, ULONG_PTR arg3);
 #endif
 
 static void *pKiUserApcDispatcher;
@@ -8476,11 +8476,19 @@ static void * WINAPI hook_KiUserApcDispatcher(void *stack)
 
     ok( args->func == apc_func, "wrong func %p / %p\n", args->func, apc_func );
     ok( args->args[0] == 0x1234 + apc_count, "wrong arg1 %Ix\n", args->args[0] );
-    ok( args->args[1] == 0x5678, "wrong arg2 %Ix\n", args->args[1] );
     ok( args->args[2] == 0xdeadbeef, "wrong arg3 %Ix\n", args->args[2] );
 
-    if (apc_count) args->alertable = FALSE;
-    pNtQueueApcThread( GetCurrentThread(), apc_func, 0x1234 + apc_count + 1, 0x5678, 0xdeadbeef );
+    if (apc_flags & QUEUE_USER_APC_CALLBACK_DATA_CONTEXT)
+    {
+        ok( args->args[1] != 0x5678, "got the raw parameter\n" );
+    }
+    else
+    {
+        ok( args->args[1] == 0x5678, "wrong arg2 %Ix\n", args->args[1] );
+
+        if (apc_count) args->alertable = FALSE;
+        pNtQueueApcThread( GetCurrentThread(), apc_func, 0x1234 + apc_count + 1, 0x5678, 0xdeadbeef );
+    }
 
     hook_called = TRUE;
     memcpy( pKiUserApcDispatcher, saved_code, sizeof(saved_code));
@@ -8499,6 +8507,7 @@ static void test_KiUserApcDispatcher(void)
         0, 0,       /* 1: hook_KiUserApcDispatcher */
     };
     DWORD old_protect;
+    NTSTATUS status;
     BOOL ret;
 
     *(void **)&hook_trampoline[4] = hook_KiUserApcDispatcher;
@@ -8527,6 +8536,26 @@ static void test_KiUserApcDispatcher(void)
     ok( apc_count == 3, "APC count %u\n", apc_count );
     SleepEx( 0, TRUE );
     ok( apc_count == 4, "APC count %u\n", apc_count );
+
+    if (pNtQueueApcThreadEx2)
+    {
+        memcpy( pKiUserApcDispatcher, patched_code, sizeof(patched_code) );
+        FlushInstructionCache( GetCurrentProcess(), pKiUserApcDispatcher, sizeof(patched_code));
+        hook_called = FALSE;
+        apc_count = 0;
+        apc_flags = QUEUE_USER_APC_CALLBACK_DATA_CONTEXT;
+        status = pNtQueueApcThreadEx2( GetCurrentThread(), NULL, QUEUE_USER_APC_CALLBACK_DATA_CONTEXT,
+                                       apc_func, 0x1234, 0x5678, 0xdeadbeef );
+        ok( !status || broken(status == STATUS_INVALID_PARAMETER /* Before Win11 22H2 */), "got %#lx.\n", status );
+        if (!status)
+        {
+            SleepEx( 0, TRUE );
+            ok( apc_count == 1, "APC was not called\n" );
+            ok( hook_called, "hook was not called\n" );
+        }
+        apc_flags = 0;
+    }
+    else win_skip( "NtQueueApcThreadEx2 is not available.\n" );
 
     VirtualProtect( pKiUserApcDispatcher, sizeof(saved_code), old_protect, &old_protect );
 }
@@ -12864,11 +12893,11 @@ START_TEST(exception)
 
 #if defined(__x86_64__) || defined(__aarch64__)
     X(NtContinueEx);
+    X(NtQueueApcThreadEx2);
 #endif
 
 #ifdef __x86_64__
     X(NtQueueApcThreadEx);
-    X(NtQueueApcThreadEx2);
     X(NtRaiseException);
     X(RtlGetNativeSystemInformation);
 
